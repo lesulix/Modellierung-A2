@@ -32,8 +32,22 @@ namespace Meshes.Algorithms
     public class MeshParameterization
     {
         public const SolverLibrary solver = SolverLibrary.CSparseDotNet;
+    
+        interface IBoundary
+        {
+            void GetUvCoordinates(double t, Action<double, double> applyUV);
+        }
 
-        class RectangleBoundary
+        class CircularBoundary : IBoundary
+        {
+            public void GetUvCoordinates(double t, Action<double, double> applyUV)
+            {
+                var radians = 2 * t * Math.PI;
+                applyUV(Math.Sin(radians)*0.5d + 0.5d, Math.Cos(radians)*0.5d + 0.5d);
+            }
+        }
+
+        class RectangleBoundary : IBoundary
         {
             internal struct QuadSide
             {
@@ -209,7 +223,6 @@ namespace Meshes.Algorithms
 
             /// TODO_A2 Task 1
             /// implement linear Barycentric Parameterization
-            ///     a.  with a circle and square boundary (5 point) 
             ///     b.  with an adaptive boundary based on original edge lengths (5 points) 
             ///     c.  using uniform and harmonic weights (5 points) 
             ///     d.  using mean value weights [2] (10 points)  
@@ -226,7 +239,11 @@ namespace Meshes.Algorithms
 
         private void FixBoundaryToShape(List<Mesh<NullTraits, FaceTraits, HalfedgeTraits, VertexTraits>.Vertex> boundaryVertices, double[] bu, double[] bv)
         {
-            var boundary = new RectangleBoundary();
+            var boundary =
+                SelectedBoundaryType == BoundaryType.Rectangle ||
+                SelectedBoundaryType == BoundaryType.RectangleAdaptive ? 
+                    (IBoundary) new RectangleBoundary() : 
+                    (IBoundary) new CircularBoundary();
             var boundaryLength = boundaryVertices.Count;
 
             var paramT = 0d;
