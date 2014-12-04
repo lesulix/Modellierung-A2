@@ -65,7 +65,7 @@ namespace Meshes.Algorithms
 
             public void GetUvCoordinates(double t, Action<double, double> applyUV)
             {
-                var interval = QuadIntervals.First(i => t > i.IntervalStart);
+                var interval = QuadIntervals.First(i => t >= i.IntervalStart);
                 interval.Convert((t - interval.IntervalStart) * 4d, applyUV);
             }
         }
@@ -214,10 +214,10 @@ namespace Meshes.Algorithms
             ///     c.  using uniform and harmonic weights (5 points) 
             ///     d.  using mean value weights [2] (10 points)  
 
-            var laplacian = MeshLaplacian.CreateExtendedUniformLaplacian(meshin);
+            var laplacian = MeshLaplacian.CreateBoundedUniformLaplacian(meshin, -1d, 0d, true);
+
             var qrSolver = QR.Create(laplacian.Compress());
-            qrSolver.Solve(bu);
-            qrSolver.Solve(bv);
+            var success = qrSolver.Solve(bu) && qrSolver.Solve(bv);
 
             /// update mesh positions
             MeshLaplacian.UpdateMesh(meshout, bu, bv, b0, bu, bv);
@@ -227,17 +227,23 @@ namespace Meshes.Algorithms
         private void FixBoundaryToShape(List<Mesh<NullTraits, FaceTraits, HalfedgeTraits, VertexTraits>.Vertex> boundaryVertices, double[] bu, double[] bv)
         {
             var boundary = new RectangleBoundary();
+            var boundaryLength = boundaryVertices.Count;
 
             var paramT = 0d;
-            foreach (var boundaryVertex in boundaryVertices)
+            var currentBoundaryVertex = boundaryVertices.FirstOrDefault();
+            while (currentBoundaryVertex != null)
             {
+                boundaryVertices.Remove(currentBoundaryVertex);
+                
                 boundary.GetUvCoordinates(paramT, (u, v) =>
                 {
-                    bu[boundaryVertex.Index] = u;
-                    bv[boundaryVertex.Index] = v;
+                    bu[currentBoundaryVertex.Index] = u;
+                    bv[currentBoundaryVertex.Index] = v;
                 });
 
-                paramT += 1d/boundaryVertices.Count;
+                currentBoundaryVertex =
+                    currentBoundaryVertex.Vertices.FirstOrDefault(v => v.OnBoundary && boundaryVertices.Contains(v));
+                paramT += 1d / boundaryLength;
             }
         }
 

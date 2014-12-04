@@ -2,3 +2,7 @@ Apps/MeshViewerDX/bin
 Apps/MeshViewerDX/obj
 Libs/CSparse.NET/bin
 Libs/CSparse.NET/obj
+Libs/Meshes.Utilities/bin
+Libs/Meshes/bin
+Libs/Meshes.Utilities/obj
+Libs/Meshes/obj

@@ -87,20 +87,11 @@ namespace Meshes.Algorithms
             }
             return A;
         }
-
-        /// <summary>
-        /// Creates a square uniform n x n Laplacian matrix
-        /// eye*[ I ] + lambda*[ L ];
-        /// Note that depending on lambda you can use this function to create both:
-        /// [I - λL]
-        /// [I + λL]
-        /// L is such that it has negative values on the diagonal and non-negative values elsewhere
-        /// If the normalized flag is true, each diagonal element of L is normalized to -1
         /// </summary>       
         public static TripletMatrix CreateUniformLaplacian(TriangleMesh mesh, double lambda = 0.0, double eye = 0.0, bool normalized = false)
         {
             int n = mesh.Vertices.Count;
-            int nz = mesh.Vertices.Aggregate(0, (c, x) => c += x.VertexCount());
+            int nz = mesh.Vertices.Aggregate(0, (c, x) => x.VertexCount());
             var L = new TripletMatrix(n, n, nz, true);
 
             /// build adjacence A and uniform L matrix
@@ -128,6 +119,46 @@ namespace Meshes.Algorithms
 
             return L;
         }
+
+        /// </summary>       
+        public static TripletMatrix CreateBoundedUniformLaplacian(TriangleMesh mesh, double lambda = 0.0, double eye = 0.0, bool normalized = false)
+        {
+            var vertexCount = mesh.Vertices.Count;
+            int neighborCount = mesh.Vertices.Aggregate(0, (c, x) => x.VertexCount());
+            var L = new TripletMatrix(vertexCount, vertexCount, neighborCount, true);
+
+            foreach (var currentVertex in mesh.Vertices)
+            {
+                if (currentVertex.OnBoundary)
+                {
+                    L.Entry(currentVertex.Index, currentVertex.Index, 1d);
+                    continue;
+                }
+
+                // Diagonal entry v(i,i) = eye*1 + λ*L(i,i)
+                var diagonalVal = eye + GetNormalized(currentVertex.Vertices.Count(), currentVertex.VertexCount(), normalized) * lambda;
+                L.Entry(currentVertex.Index, currentVertex.Index, diagonalVal);
+                currentVertex.Vertices.Apply(nb =>
+                    L.Entry(currentVertex.Index, nb.Index, GetNormalized(-1, currentVertex.VertexCount(), normalized) * lambda));
+            }
+
+            return L;
+        }
+
+        private static double GetNormalized(decimal value, decimal sumOfValues, bool normalized)
+        {
+            return (double)(normalized ? value / sumOfValues : value);
+        }
+
+        /// <summary>
+        /// Creates a square uniform n x n Laplacian matrix
+        /// eye*[ I ] + lambda*[ L ];
+        /// Note that depending on lambda you can use this function to create both:
+        /// [I - λL]
+        /// [I + λL]
+        /// L is such that it has negative values on the diagonal and non-negative values elsewhere
+        /// If the normalized flag is true, each diagonal element of L is normalized to -1
+
 
         /// <summary>
         /// Creates a square cotangent n x n Laplacian matrix
@@ -242,7 +273,7 @@ namespace Meshes.Algorithms
             int nz = mesh.Vertices.Aggregate(0, (c, x) => c += x.VertexCount());
             var L = new TripletMatrix(2 * n, n, nz + 2 * n, true);
 
-           
+            
 
             return L;
         }
