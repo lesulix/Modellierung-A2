@@ -11,6 +11,7 @@ using System.Drawing;
 using CSparse.Double;
 using MathNet.Numerics.LinearAlgebra.Double;
 using System.Threading.Tasks;
+using MeshVertex = Meshes.Generic.Mesh<Meshes.NullTraits, Meshes.FaceTraits, Meshes.HalfedgeTraits, Meshes.VertexTraits>.Vertex;
 
 #if MATLAB
 using MatlabWrap;
@@ -223,7 +224,6 @@ namespace Meshes.Algorithms
 
             /// TODO_A2 Task 1
             /// implement linear Barycentric Parameterization
-            ///     b.  with an adaptive boundary based on original edge lengths (5 points) 
             ///     c.  using uniform and harmonic weights (5 points) 
             ///     d.  using mean value weights [2] (10 points)  
 
@@ -237,30 +237,69 @@ namespace Meshes.Algorithms
             MeshLaplacian.UpdateMesh(meshin, bu, bv);
         }
 
-        private void FixBoundaryToShape(List<Mesh<NullTraits, FaceTraits, HalfedgeTraits, VertexTraits>.Vertex> boundaryVertices, double[] bu, double[] bv)
+        private void FixBoundaryToShape(List<MeshVertex> boundaryVertices, double[] bu, double[] bv)
         {
+            var sortedBoundary = new List<Mesh<NullTraits, FaceTraits, HalfedgeTraits, VertexTraits>.Vertex>();
+
             var boundary =
-                SelectedBoundaryType == BoundaryType.Rectangle ||
-                SelectedBoundaryType == BoundaryType.RectangleAdaptive ? 
+                RectangleBoundaryIsActive ? 
                     (IBoundary) new RectangleBoundary() : 
                     (IBoundary) new CircularBoundary();
-            var boundaryLength = boundaryVertices.Count;
 
-            var paramT = 0d;
+            var edgeLengthFunc =
+                AdaptiveBoundaryIsActive
+                    ? (Func<Vector3, Vector3, double>) ((lhs, rhs) => (lhs - rhs).Length())
+                    : (Func<Vector3, Vector3, double>) ((lhs, rhs) => 1d);
+
             var currentBoundaryVertex = boundaryVertices.FirstOrDefault();
+            var prevBoundaryVertex = (MeshVertex) null;
+            var edgeSum = 0d;
+
             while (currentBoundaryVertex != null)
             {
-                boundaryVertices.Remove(currentBoundaryVertex);
+                sortedBoundary.Add(currentBoundaryVertex);
+
+                if (prevBoundaryVertex != null)
+                    edgeSum += edgeLengthFunc(prevBoundaryVertex.Traits.Position, currentBoundaryVertex.Traits.Position);
+
+                prevBoundaryVertex = currentBoundaryVertex;
+                currentBoundaryVertex =
+                    currentBoundaryVertex.Vertices.FirstOrDefault(v => v.OnBoundary && !sortedBoundary.Contains(v));
                 
+            }
+            edgeSum += edgeLengthFunc(sortedBoundary.Last().Traits.Position, sortedBoundary.First().Traits.Position);
+
+            var paramT = 0d;
+            prevBoundaryVertex = sortedBoundary.Last();
+
+            foreach (var entry in sortedBoundary)
+            {
                 boundary.GetUvCoordinates(paramT, (u, v) =>
                 {
-                    bu[currentBoundaryVertex.Index] = u;
-                    bv[currentBoundaryVertex.Index] = v;
+                    bu[entry.Index] = u;
+                    bv[entry.Index] = v;
                 });
 
-                currentBoundaryVertex =
-                    currentBoundaryVertex.Vertices.FirstOrDefault(v => v.OnBoundary && boundaryVertices.Contains(v));
-                paramT += 1d / boundaryLength;
+                paramT += edgeLengthFunc(prevBoundaryVertex.Traits.Position, entry.Traits.Position) / edgeSum;
+                prevBoundaryVertex = entry;
+            }
+        }
+
+        private bool AdaptiveBoundaryIsActive
+        {
+            get
+            {
+                return SelectedBoundaryType == BoundaryType.RectangleAdaptive ||
+                       SelectedBoundaryType == BoundaryType.CircleAdaptive;
+            }
+        }
+
+        private bool RectangleBoundaryIsActive
+        {
+            get
+            {
+                return SelectedBoundaryType == BoundaryType.Rectangle ||
+                       SelectedBoundaryType == BoundaryType.RectangleAdaptive;
             }
         }
 
