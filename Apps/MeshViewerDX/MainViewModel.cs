@@ -172,6 +172,10 @@
                 {
                     MeshLaplacian.SelectedLaplacian = MeshLaplacian.Type.Cotan;
                 }
+                else if (value == MeshLaplacian.Type.Harmonic.ToString())
+                {
+                    MeshLaplacian.SelectedLaplacian = MeshLaplacian.Type.Harmonic;
+                }
                 else if (value == MeshLaplacian.Type.MeanValue.ToString())
                 {
                     MeshLaplacian.SelectedLaplacian = MeshLaplacian.Type.MeanValue;

@@ -224,10 +224,11 @@ namespace Meshes.Algorithms
 
             /// TODO_A2 Task 1
             /// implement linear Barycentric Parameterization
-            ///     c.  using uniform and harmonic weights (5 points) 
             ///     d.  using mean value weights [2] (10 points)  
 
-            var laplacian = MeshLaplacian.CreateBoundedUniformLaplacian(meshin, -1d, 0d, true);
+            var laplacian = MeshLaplacian.SelectedLaplacian == MeshLaplacian.Type.Harmonic ?
+                MeshLaplacian.CreateBoundedHarmonicLaplacian(meshin, 1d, 0d, true) :
+                MeshLaplacian.CreateBoundedUniformLaplacian(meshin, 1d, 0d, true);
 
             var qrSolver = QR.Create(laplacian.Compress());
             var success = qrSolver.Solve(bu) && qrSolver.Solve(bv);

@@ -20,7 +20,7 @@ namespace Meshes.Algorithms
     {
         public enum Type
         {
-            Uniform, Cotan, MeanValue,
+            Uniform, Cotan, MeanValue, Harmonic
         }
 
         /// <summary>
@@ -30,7 +30,8 @@ namespace Meshes.Algorithms
         {
             Type.Uniform.ToString(),
             Type.Cotan.ToString(),
-            Type.MeanValue.ToString(),                
+            Type.MeanValue.ToString(),     
+            Type.Harmonic.ToString(),                
         };
 
         /// <summary>
@@ -145,7 +146,42 @@ namespace Meshes.Algorithms
             return L;
         }
 
-        private static double GetNormalized(decimal value, decimal sumOfValues, bool normalized)
+        public static TripletMatrix CreateBoundedHarmonicLaplacian(TriangleMesh mesh, double lambda = 0.0, double eye = 0.0, bool normalized = false)
+        {
+            PrecomputeTraits(mesh);
+            
+            var vertexCount = mesh.Vertices.Count;
+            int neighborCount = mesh.Vertices.Aggregate(0, (c, x) => x.VertexCount());
+            var L = new TripletMatrix(vertexCount, vertexCount, neighborCount, true);
+
+            foreach (var currentVertex in mesh.Vertices)
+            {
+                if (currentVertex.OnBoundary)
+                {
+                    L.Entry(currentVertex.Index, currentVertex.Index, 1d);
+                    continue;
+                }
+
+                // Diagonal entry v(i,i) = eye*1 + λ*L(i,i)
+                var edgeSum = currentVertex.Halfedges.Sum(e => CotanSum(e));
+                var diagonalVal = eye + GetNormalized(edgeSum, edgeSum, normalized) * lambda;
+                L.Entry(currentVertex.Index, currentVertex.Index, diagonalVal);
+                currentVertex.Halfedges.Apply(e => 
+                    L.Entry(currentVertex.Index, e.ToVertex.Index, -GetNormalized(CotanSum(e), edgeSum, normalized)*lambda));
+            }
+
+            return L;
+        }
+
+        private static double CotanSum(Mesh<NullTraits, FaceTraits, HalfedgeTraits, VertexTraits>.Halfedge halfedge)
+        {
+            var e_prev = halfedge.Opposite.Previous;
+            var e_next = halfedge.Previous;
+            return e_prev.Traits.Cotan + e_next.Traits.Cotan;
+        }
+
+
+        private static double GetNormalized(double value, double sumOfValues, bool normalized)
         {
             return (double)(normalized ? value / sumOfValues : value);
         }
