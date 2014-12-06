@@ -222,13 +222,11 @@ namespace Meshes.Algorithms
 
             FixBoundaryToShape(boundaryVertices, bu, bv);
 
-            /// TODO_A2 Task 1
-            /// implement linear Barycentric Parameterization
-            ///     d.  using mean value weights [2] (10 points)  
-
             var laplacian = MeshLaplacian.SelectedLaplacian == MeshLaplacian.Type.Harmonic ?
                 MeshLaplacian.CreateBoundedHarmonicLaplacian(meshin, 1d, 0d, true) :
-                MeshLaplacian.CreateBoundedUniformLaplacian(meshin, 1d, 0d, true);
+                MeshLaplacian.SelectedLaplacian == MeshLaplacian.Type.MeanValue ?
+                    MeshLaplacian.CreateBoundedMeanLaplacian(meshin, 1d, 0d, true) :
+                    MeshLaplacian.CreateBoundedUniformLaplacian(meshin, 1d, 0d, true);
 
             var qrSolver = QR.Create(laplacian.Compress());
             var success = qrSolver.Solve(bu) && qrSolver.Solve(bv);

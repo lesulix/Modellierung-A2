@@ -173,6 +173,33 @@ namespace Meshes.Algorithms
             return L;
         }
 
+        public static TripletMatrix CreateBoundedMeanLaplacian(TriangleMesh mesh, double lambda = 0.0, double eye = 0.0, bool normalized = false)
+        {
+            PrecomputeTraits(mesh);
+
+            var vertexCount = mesh.Vertices.Count;
+            int neighborCount = mesh.Vertices.Aggregate(0, (c, x) => x.VertexCount());
+            var L = new TripletMatrix(vertexCount, vertexCount, neighborCount, true);
+
+            foreach (var currentVertex in mesh.Vertices)
+            {
+                if (currentVertex.OnBoundary)
+                {
+                    L.Entry(currentVertex.Index, currentVertex.Index, 1d);
+                    continue;
+                }
+
+                // Diagonal entry v(i,i) = eye*1 + λ*L(i,i)
+                var edgeSum = currentVertex.Halfedges.Sum(e => TanWeights(e));
+                var diagonalVal = eye + GetNormalized(edgeSum, edgeSum, normalized) * lambda;
+                L.Entry(currentVertex.Index, currentVertex.Index, diagonalVal);
+                currentVertex.Halfedges.Apply(e =>
+                    L.Entry(currentVertex.Index, e.ToVertex.Index, -GetNormalized(TanWeights(e), edgeSum, normalized) * lambda));
+            }
+
+            return L;
+        }
+
         private static double CotanSum(Mesh<NullTraits, FaceTraits, HalfedgeTraits, VertexTraits>.Halfedge halfedge)
         {
             var e_prev = halfedge.Opposite.Previous;
@@ -180,6 +207,13 @@ namespace Meshes.Algorithms
             return e_prev.Traits.Cotan + e_next.Traits.Cotan;
         }
 
+        private static double TanWeights(Mesh<NullTraits, FaceTraits, HalfedgeTraits, VertexTraits>.Halfedge halfedge)
+        {
+            var e_prev = halfedge.Opposite.Next;
+            var e_next = halfedge;
+            var edgeLength = (halfedge.FromVertex.Traits.Position - halfedge.ToVertex.Traits.Position).Length();
+            return (e_prev.Traits.HalfTangens + e_next.Traits.HalfTangens) / edgeLength;
+        }
 
         private static double GetNormalized(double value, double sumOfValues, bool normalized)
         {
@@ -394,6 +428,9 @@ namespace Meshes.Algorithms
                     var hj = hi.Previous;
                     var ej = hj.FromVertex.Traits.Position - hj.ToVertex.Traits.Position;
                     hi.Traits.Cotan = Vector3.Dot(ei, ej) / Vector3.Cross(ei, ej).Length();
+                    var alpha = Math.Acos(Vector3.Dot(Vector3.Normalize(ei), Vector3.Normalize(ej)));
+                    // alpha is always < Pi (due to rectangle property) we do not have to considered ambiguities due to acos
+                    hi.Traits.HalfTangens = Math.Tan(alpha*0.5d);
                 }
             }
         }

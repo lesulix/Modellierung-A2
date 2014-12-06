@@ -30,6 +30,11 @@ namespace Meshes
         /// Stores the cotangens of the value of the 
         /// </summary>
         public double Cotan;
+
+        /// <summary>
+        /// Stores the tangens of the value of the 
+        /// </summary>
+        public double HalfTangens;
         
         /// <summary>
         /// U,V Texture coordinate.
