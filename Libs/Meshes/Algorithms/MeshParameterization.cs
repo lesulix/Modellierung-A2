@@ -1,8 +1,5 @@
 ﻿//#define MATLAB
 
-using System.Data;
-using System.Diagnostics.Eventing.Reader;
-using System.Security.AccessControl;
 using Meshes.Generic;
 using SharpDX;
 using System;
@@ -15,8 +12,6 @@ using CSparse.Double;
 using MathNet.Numerics.LinearAlgebra.Double;
 using System.Threading.Tasks;
 using MeshVertex = Meshes.Generic.Mesh<Meshes.NullTraits, Meshes.FaceTraits, Meshes.HalfedgeTraits, Meshes.VertexTraits>.Vertex;
-using MeshFace = Meshes.Generic.Mesh<Meshes.NullTraits, Meshes.FaceTraits, Meshes.HalfedgeTraits, Meshes.VertexTraits>.Face;
-using MeshHalfEdge = Meshes.Generic.Mesh<Meshes.NullTraits, Meshes.FaceTraits, Meshes.HalfedgeTraits, Meshes.VertexTraits>.Halfedge;
 
 #if MATLAB
 using MatlabWrap;
@@ -415,49 +410,6 @@ namespace Meshes.Algorithms
         {
             var gimg = new Bitmap(512, 512);
 
-            var minimum = meshin.Traits.BoundingBox.Minimum;
-            var extents = meshin.Traits.BoundingBox.Maximum - meshin.Traits.BoundingBox.Minimum;
-
-            // Use naive rasterizing approach, don't want to implement scanline algorithm : https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
-            foreach (var face in meshin.Faces)
-            {
-                var a = face.Vertices.ElementAt(0).Traits;
-                var b = face.Vertices.ElementAt(1).Traits;
-                var c = face.Vertices.ElementAt(2).Traits;
-
-                var triangleBounds = BoundingBox.FromPoints(new[]
-                {
-                    new Vector3(a.TextureCoordinate, 0),
-                    new Vector3(b.TextureCoordinate, 0),
-                    new Vector3(c.TextureCoordinate, 0),
-                });
-
-                triangleBounds.Maximum.X = (float)Math.Round(triangleBounds.Maximum.X * 512d);
-                triangleBounds.Maximum.Y = (float)Math.Round(triangleBounds.Maximum.Y * 512d);
-                triangleBounds.Minimum.X = (float)Math.Round(triangleBounds.Minimum.X * 512d);
-                triangleBounds.Minimum.Y = (float)Math.Round(triangleBounds.Minimum.Y * 512d);
-
-                for (var ptX = (int) triangleBounds.Minimum.X; ptX <= triangleBounds.Maximum.X; ptX++)
-                {
-                    for (var ptY = (int) triangleBounds.Minimum.Y; ptY <= triangleBounds.Maximum.Y; ptY++)
-                    {
-                        var current = new Vector2((float) (ptX/255d), (float) (ptY/255d));
-
-                        var det = GetBarycentricCoordinate(a.TextureCoordinate, b.TextureCoordinate, c.TextureCoordinate);
-                        var wA = GetBarycentricCoordinate(b.TextureCoordinate, c.TextureCoordinate, current) / det;
-                        var wB = GetBarycentricCoordinate(c.TextureCoordinate, a.TextureCoordinate, current) / det;
-                        var wC = GetBarycentricCoordinate(a.TextureCoordinate, b.TextureCoordinate, current) / det;
-
-                        // If p is on or inside all edges, render pixel.
-                        if (wA < 0 || wB < 0 || wC < 0)
-                            continue;
-                       
-                        var position = a.Position*wA + b.Position*wB + c.Position*wC - minimum;
-                        gimg.SetPixel(ptX, ptY, System.Drawing.Color.FromArgb((int) ((position.X / extents.X) * 255), (int) ((position.Y / extents.Y) * 255), (int) ((position.Z / extents.Z) * 255)));
-                    }
-                }
-            }
-
             /// TODO_A2 Task 3
             /// implement geometry image sampling using a parameterized mesh
             /// Images will be saved in the Apps/MeshViewerDX/Data folder
@@ -470,10 +422,6 @@ namespace Meshes.Algorithms
             return gimg;
         }
 
-        float GetBarycentricCoordinate(Vector2 v0, Vector2 v1, Vector2 pt)
-        {
-            return (v1.X - v0.X) * (pt.Y - v0.Y) - (v1.Y - v0.Y) * (pt.X - v0.X);
-        }
 
         /// <summary>
         /// Compute matrix M_t for each triangle
