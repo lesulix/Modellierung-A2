@@ -1,6 +1,6 @@
-C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\A2\Libs\MatlabWrap\bin\Debug\MatlabWrap.dll
-C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\A2\Libs\MatlabWrap\bin\Debug\MatlabWrap.pdb
-C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.csprojResolveAssemblyReference.cache
-C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.csproj.ResolveComReference.cache
-C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.dll
-C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.pdb
+C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\Modellierung-A2\Libs\MatlabWrap\bin\Debug\MatlabWrap.dll
+C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\Modellierung-A2\Libs\MatlabWrap\bin\Debug\MatlabWrap.pdb
+C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\Modellierung-A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.csprojResolveAssemblyReference.cache
+C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\Modellierung-A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.csproj.ResolveComReference.cache
+C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\Modellierung-A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.dll
+C:\Users\Sulix\Documents\GitHub\Modellierung-in-der-CG\0347138-domanski-michal-A2\Modellierung-A2\Libs\MatlabWrap\obj\Debug\MatlabWrap.pdb

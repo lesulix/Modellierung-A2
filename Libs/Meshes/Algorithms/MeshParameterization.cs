@@ -1,8 +1,5 @@
 ﻿//#define MATLAB
 
-using System.Data;
-using System.Diagnostics.Eventing.Reader;
-using System.Security.AccessControl;
 using Meshes.Generic;
 using SharpDX;
 using System;
@@ -14,9 +11,11 @@ using System.Drawing;
 using CSparse.Double;
 using MathNet.Numerics.LinearAlgebra.Double;
 using System.Threading.Tasks;
+using Matrix = SharpDX.Matrix;
 using MeshVertex = Meshes.Generic.Mesh<Meshes.NullTraits, Meshes.FaceTraits, Meshes.HalfedgeTraits, Meshes.VertexTraits>.Vertex;
 using MeshFace = Meshes.Generic.Mesh<Meshes.NullTraits, Meshes.FaceTraits, Meshes.HalfedgeTraits, Meshes.VertexTraits>.Face;
 using MeshHalfEdge = Meshes.Generic.Mesh<Meshes.NullTraits, Meshes.FaceTraits, Meshes.HalfedgeTraits, Meshes.VertexTraits>.Halfedge;
+using SparseMatrix = CSparse.Double.SparseMatrix;
 
 #if MATLAB
 using MatlabWrap;
@@ -77,9 +76,9 @@ namespace Meshes.Algorithms
             }
 
             static readonly QuadSide Bottom = new QuadSide(t => t, t => 0d, 0d);
+            static readonly QuadSide Right = new QuadSide(t => 1d, t => t, 0.25d);
             static readonly QuadSide Top = new QuadSide(t => 1d - t, t => 1d, 0.5d);
             static readonly QuadSide Left = new QuadSide(t => 0d, t => 1d - t, 0.75d);
-            static readonly QuadSide Right = new QuadSide(t => 1d, t => t, 0.25d);
 
             public static readonly List<QuadSide> QuadIntervals = new List<QuadSide> { Left, Top, Right, Bottom };  
 
@@ -225,6 +224,7 @@ namespace Meshes.Algorithms
             var bv = new double[vertexCount];
             var b0 = new double[vertexCount];
 
+            // TODO : For geometry images, L mapped edges require splitting. Adaptive length parameterization should be sufficient for crack prediction however
             FixBoundaryToShape(boundaryVertices, bu, bv);
 
             var laplacian = MeshLaplacian.SelectedLaplacian == MeshLaplacian.Type.Harmonic ?
@@ -318,10 +318,6 @@ namespace Meshes.Algorithms
             /// copy mesh for output
             meshout = meshin.Copy();
 
-            /// get fixed points
-            int fv0 = this.P1Index;
-            int fv1 = this.P2Index;
-
             /// provide uv's for fixed 2 points            
             var b = new double[]
             {
@@ -341,13 +337,115 @@ namespace Meshes.Algorithms
             var A1 = new TripletMatrix(2 * m, 2 * n - 4, 6 * 2 * m);
             var A2 = new TripletMatrix(2 * m, 4, 4 * 2 * m);
 
-            /// TODO_A2 Task 4
-            /// implement Least Squares Conformal Maps (LCSM)
-            /// use this function to compute the matrix M per triangle      
+            foreach (var face in meshin.Faces)
+            {
+                var v1_global = face.Vertices.ElementAt(0).Traits.Position;
+                var v2_global = face.Vertices.ElementAt(1).Traits.Position;
+                var v3_global = face.Vertices.ElementAt(2).Traits.Position;
+
+                var xDir = v2_global - v1_global;
+                var skewedZDir = v3_global - v1_global;
+                var yDir = Vector3.Cross(xDir, skewedZDir);
+
+                xDir.Normalize();
+                yDir.Normalize();
+
+                var zDir = Vector3.Cross(yDir, xDir);
+
+                var transform = new Matrix(new[]
+                    {
+                        xDir.X, xDir.Y, xDir.Z, 0,
+                        yDir.X, yDir.Y, yDir.Z, 0,
+                        zDir.X, zDir.Y, zDir.Z, 0,
+                        0, 0, 0, 1,
+                    });
+                transform.Transpose();
+
+                var v1 = Vector3.Transform(v1_global, transform);
+                var v2 = Vector3.Transform(v2_global, transform);
+                var v3 = Vector3.Transform(v3_global, transform);
+            
+                var areaTriangle =
+                    ((double) v1.X * v2.Z - (double) v1.Z * v2.X) +
+                    ((double) v2.X * v3.Z - (double) v2.Z * v3.X) +
+                    ((double) v3.X * v1.Z - (double) v3.Z * v1.X);
+
+                // MT
+                var mT_dx = new Vector3(v2.Z - v3.Z, v3.Z - v1.Z, v1.Z - v2.Z) * (float) (1d / areaTriangle);
+                var mT_dy = new Vector3(v3.X - v2.X, v1.X - v3.X, v2.X - v1.X) * (float) (1d / areaTriangle);
+                
+                // R * MT
+                var rMT_dx = -mT_dy;
+                var rMT_dy = mT_dx;
+
+                var subIndex = 0;
+                
+                // Expected x layout : u1 v1 u2 v2...ui vi ui+2 vi+2...uj vj uj+2 vj+2...un vn
+                foreach (var vertex in face.Vertices)
+                {
+                    if (vertex.Index == P1Index || vertex.Index == P2Index)
+                    {
+                        var entryIndex = vertex.Index == P1Index ? 0 : 1;
+
+                        // -R*MT * u (dx,dy)
+                        A2.Entry(face.Index, 2 * entryIndex, -rMT_dx[subIndex]);
+                        A2.Entry(face.Index + 1, 2 * entryIndex, -rMT_dy[subIndex]);
+
+                        // MT * v (dx,dy)
+                        A2.Entry(2 * face.Index, 2 * entryIndex + 1, mT_dx[subIndex]);
+                        A2.Entry(2 * face.Index + 1, 2 * entryIndex + 1, mT_dy[subIndex]);
+                    }
+                    else
+                    {
+                        var entryIndex = AdaptedIndexFor(vertex.Index);
+                        
+                        // -R*MT * u (dx,dy)
+                        A1.Entry(2 * face.Index, 2 * entryIndex, -rMT_dx[subIndex]);
+                        A1.Entry(2 * face.Index + 1, 2 * entryIndex, -rMT_dy[subIndex]);
+
+                        // MT * v (dx,dy)
+                        A1.Entry(2 * face.Index, 2 * entryIndex + 1, mT_dx[subIndex]);
+                        A1.Entry(2 * face.Index + 1, 2 * entryIndex + 1, mT_dy[subIndex]);
+                    }
+
+                    subIndex++;
+                }
+
+            }
+
+            double[] bPrime;
+            A2.Compress().Ax(b, out bPrime);
+
+            var solver = QR.Create(A1.Compress());
+            solver.Solve(bPrime);
+
+            for (var vertIndex = 0; vertIndex < n; vertIndex++)
+            {
+                if (vertIndex == P1Index)
+                {
+                    bu[vertIndex] = P1UV[0];
+                    bv[vertIndex] = P1UV[1];
+                } else if (vertIndex == P2Index)
+                {
+                    bu[vertIndex] = P2UV[0];
+                    bv[vertIndex] = P2UV[1];
+                }
+                else
+                {
+                    var adaptedIndex = AdaptedIndexFor(vertIndex);
+                    bu[vertIndex] = bPrime[2 * adaptedIndex];
+                    bv[vertIndex] = bPrime[2 * adaptedIndex + 1];
+                }
+            }
 
             /// update mesh positions and uv's
             MeshLaplacian.UpdateMesh(meshout, bu, bv, b0, bu, bv);
             MeshLaplacian.UpdateMesh(meshin, bu, bv);
+        }
+
+        private int AdaptedIndexFor(int vertexIndex)
+        {
+            return vertexIndex - (vertexIndex > P1Index ? 1 : 0) - (vertexIndex > P2Index ? 1 : 0);
         }
 
         /// <summary>
@@ -437,31 +535,26 @@ namespace Meshes.Algorithms
                 triangleBounds.Minimum.X = (float)Math.Round(triangleBounds.Minimum.X * 512d);
                 triangleBounds.Minimum.Y = (float)Math.Round(triangleBounds.Minimum.Y * 512d);
 
-                for (var ptX = (int) triangleBounds.Minimum.X; ptX <= triangleBounds.Maximum.X; ptX++)
+                for (var ptX = (int) triangleBounds.Minimum.X; ptX < triangleBounds.Maximum.X; ptX++)
                 {
-                    for (var ptY = (int) triangleBounds.Minimum.Y; ptY <= triangleBounds.Maximum.Y; ptY++)
+                    for (var ptY = (int) triangleBounds.Minimum.Y; ptY < triangleBounds.Maximum.Y; ptY++)
                     {
-                        var current = new Vector2((float) (ptX/255d), (float) (ptY/255d));
+                        var current = new Vector2((float) (ptX/512d + 1d/1024d), (float) (ptY/512d + 1d/1024d));
 
                         var det = GetBarycentricCoordinate(a.TextureCoordinate, b.TextureCoordinate, c.TextureCoordinate);
                         var wA = GetBarycentricCoordinate(b.TextureCoordinate, c.TextureCoordinate, current) / det;
                         var wB = GetBarycentricCoordinate(c.TextureCoordinate, a.TextureCoordinate, current) / det;
                         var wC = GetBarycentricCoordinate(a.TextureCoordinate, b.TextureCoordinate, current) / det;
 
-                        // If p is on or inside all edges, render pixel.
                         if (wA < 0 || wB < 0 || wC < 0)
                             continue;
                        
                         var position = a.Position*wA + b.Position*wB + c.Position*wC - minimum;
-                        gimg.SetPixel(ptX, ptY, System.Drawing.Color.FromArgb((int) ((position.X / extents.X) * 255), (int) ((position.Y / extents.Y) * 255), (int) ((position.Z / extents.Z) * 255)));
+                        gimg.SetPixel(ptX, ptY, System.Drawing.Color.FromArgb((int)((position.X / extents.X) * 255), (int)((position.Y / extents.Y) * 255), (int)((position.Z / extents.Z) * 255)));
                     }
                 }
             }
 
-            /// TODO_A2 Task 3
-            /// implement geometry image sampling using a parameterized mesh
-            /// Images will be saved in the Apps/MeshViewerDX/Data folder
-            /// see (Gu et al. 2002)
             int lastSlash = meshin.FileName.LastIndexOf('\\');
             lastSlash = Math.Max(lastSlash, meshin.FileName.LastIndexOf('/'));
             string file = (lastSlash == -1) ? meshin.FileName : meshin.FileName.Substring(lastSlash + 1);
@@ -472,7 +565,7 @@ namespace Meshes.Algorithms
 
         float GetBarycentricCoordinate(Vector2 v0, Vector2 v1, Vector2 pt)
         {
-            return (v1.X - v0.X) * (pt.Y - v0.Y) - (v1.Y - v0.Y) * (pt.X - v0.X);
+            return (v0.Y - v1.Y) * (pt.X - v1.X) + (v1.X - v0.X) * (pt.Y - v1.Y);
         }
 
         /// <summary>
@@ -486,11 +579,39 @@ namespace Meshes.Algorithms
 #endif
             double[,] M;
 
-            /// TODO_A2 Task 4
-            /// implement Least Squares Conformal Maps (LCSM)
-            /// use this function to compute the matrix M per triangle
-            /// 
-            M = null;
+            var v1_global = vertices.ElementAt(0).Traits.Position;
+            var v2_global = vertices.ElementAt(1).Traits.Position;
+            var v3_global = vertices.ElementAt(2).Traits.Position;
+
+            var xDir = v2_global - v1_global;
+            var skewedZDir = v3_global - v1_global;
+            var yDir = Vector3.Cross(xDir, skewedZDir);
+            var zDir = Vector3.Cross(yDir, xDir);
+
+            xDir.Normalize();
+            yDir.Normalize();
+
+            var transform = new Matrix(new[]
+                {
+                    xDir.X, xDir.Y, xDir.Z, -v1_global.X,
+                    yDir.X, yDir.Y, yDir.Z, -v1_global.Y,
+                    zDir.X, zDir.Y, zDir.Z, -v1_global.Z,
+                    0, 0, 0, 1,
+                });
+
+            var v1 = Vector3.Transform(v1_global, transform);
+            var v2 = Vector3.Transform(v2_global, transform);
+            var v3 = Vector3.Transform(v3_global, transform);
+            
+            var areaTriangle =
+                v1.X * v2.Y - v1.Y * v2.X +
+                v2.X * v3.Y - v2.Y * v3.X +
+                v3.X * v1.Y - v3.Y * v1.X;
+
+            var rowVec1 = new Vector3(v2.Y - v3.Y, v3.Y - v1.Y, v1.Y - v2.Y) * 1f / areaTriangle;
+            var rowVec2 = new Vector3(v3.Y - v2.Y, v1.Y - v3.Y, v2.Y - v1.Y) * 1f / areaTriangle;
+
+            M = MatrixFromRowVectors(rowVec1.ToArray(), rowVec2.ToArray());
 
             return M;
         }
