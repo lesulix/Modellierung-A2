@@ -370,14 +370,9 @@ namespace Meshes.Algorithms
                     ((double) v2.X * v3.Z - (double) v2.Z * v3.X) +
                     ((double) v3.X * v1.Z - (double) v3.Z * v1.X);
 
-                // MT
-                var mT_dx = new Vector3(v2.Z - v3.Z, v3.Z - v1.Z, v1.Z - v2.Z) * (float) (1d / areaTriangle);
-                var mT_dy = new Vector3(v3.X - v2.X, v1.X - v3.X, v2.X - v1.X) * (float) (1d / areaTriangle);
-                
-                // R * MT
-                var rMT_dx = -mT_dy;
-                var rMT_dy = mT_dx;
-
+                var mImaginary = new Vector3(v3.Z - v2.Z, v1.Z - v3.Z, v2.Z - v1.Z) * (float) (1d / areaTriangle);
+                var mReal = new Vector3(v3.X - v2.X, v1.X - v3.X, v2.X - v1.X) * (float) (1d / areaTriangle);
+               
                 var subIndex = 0;
                 
                 // Expected x layout : u1 v1 u2 v2...ui vi ui+2 vi+2...uj vj uj+2 vj+2...un vn
@@ -388,29 +383,28 @@ namespace Meshes.Algorithms
                         var entryIndex = vertex.Index == P1Index ? 0 : 1;
 
                         // -R*MT * u (dx,dy)
-                        A2.Entry(face.Index, 2 * entryIndex, -rMT_dx[subIndex]);
-                        A2.Entry(face.Index + 1, 2 * entryIndex, -rMT_dy[subIndex]);
+                        A2.Entry(2 * face.Index, 2 * entryIndex, -mReal[subIndex]);
+                        A2.Entry(2 * face.Index + 1, 2 * entryIndex, -mImaginary[subIndex]);
 
                         // MT * v (dx,dy)
-                        A2.Entry(2 * face.Index, 2 * entryIndex + 1, mT_dx[subIndex]);
-                        A2.Entry(2 * face.Index + 1, 2 * entryIndex + 1, mT_dy[subIndex]);
+                        A2.Entry(2 * face.Index, 2 * entryIndex + 1, mImaginary[subIndex]);
+                        A2.Entry(2 * face.Index + 1, 2 * entryIndex + 1, -mReal[subIndex]);
                     }
                     else
                     {
                         var entryIndex = AdaptedIndexFor(vertex.Index);
                         
                         // -R*MT * u (dx,dy)
-                        A1.Entry(2 * face.Index, 2 * entryIndex, -rMT_dx[subIndex]);
-                        A1.Entry(2 * face.Index + 1, 2 * entryIndex, -rMT_dy[subIndex]);
+                        A1.Entry(2 * face.Index, 2 * entryIndex, mReal[subIndex]);
+                        A1.Entry(2 * face.Index + 1, 2 * entryIndex, mImaginary[subIndex]);
 
                         // MT * v (dx,dy)
-                        A1.Entry(2 * face.Index, 2 * entryIndex + 1, mT_dx[subIndex]);
-                        A1.Entry(2 * face.Index + 1, 2 * entryIndex + 1, mT_dy[subIndex]);
+                        A1.Entry(2 * face.Index, 2 * entryIndex + 1, -mImaginary[subIndex]);
+                        A1.Entry(2 * face.Index + 1, 2 * entryIndex + 1, mReal[subIndex]);
                     }
 
                     subIndex++;
                 }
-
             }
 
             double[] bPrime;
