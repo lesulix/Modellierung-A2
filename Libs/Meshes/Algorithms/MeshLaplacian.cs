@@ -414,7 +414,7 @@ namespace Meshes.Algorithms
         /// Store each angle-cotan at the (outgoing) halfedge of each vertex.
         /// Store each voronoi-area at the (outgoing) halfedge of 
         /// </summary>
-        private static void PrecomputeTraits(TriangleMesh mesh)
+        internal static void PrecomputeTraits(TriangleMesh mesh)
         {
             /// compute all cotans
             /// store each cotan at the foot of each halfedge

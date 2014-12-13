@@ -449,20 +449,156 @@ namespace Meshes.Algorithms
         /// <param name="meshout"></param>
         private void DCP(TriangleMesh meshin, out TriangleMesh meshout)
         {
+            MeshLaplacian.PrecomputeTraits(meshin);
+
             /// copy the mesh
             meshout = meshin.Copy();
 
             /// counters
-            int n = meshout.Vertices.Count;
-            int m = meshout.Faces.Count;
+            var vertexCount = meshout.Vertices.Count;
 
             /// output uv-coordinates
-            var bu = new double[n];
-            var bv = new double[n];
-            var b0 = new double[n];
+            var bu = new double[vertexCount];
+            var bv = new double[vertexCount];
+            var b0 = new double[vertexCount];
 
-            /// TODO_A2 Task 5
-            /// implement Direct Conformal Parameterization (DCP)           
+            // A * x = b
+            var x = new double[vertexCount * 2 + 4];
+
+            var M_A = new TripletMatrix(2 * (vertexCount + 2), 2 * vertexCount, 4 * (vertexCount + 1) * vertexCount);
+            var M_X = new TripletMatrix(2 * (vertexCount + 2), 2 * vertexCount, 4 * (vertexCount + 1) * vertexCount);
+
+            foreach (var vertex in meshin.Vertices.Where(v => !v.OnBoundary))
+            {
+                var areaWeightSum = 0d;
+                var angleWeightSum = 0d;
+
+                foreach (var halfEdge in vertex.Halfedges)
+                {
+                    // cot(alpha) + cot(beta)
+                    var areaWeight = halfEdge.Previous.Traits.Cotan + halfEdge.Opposite.Previous.Traits.Cotan;
+                    // cot(gamma) + cot(delta)
+                    var angleWeight = (halfEdge.Next.Traits.Cotan + halfEdge.Opposite.Traits.Cotan);
+                    angleWeight /= (halfEdge.FromVertex.Traits.Position - halfEdge.ToVertex.Traits.Position).LengthSquared();
+
+                    M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, areaWeight);
+                    M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, areaWeight);
+                    M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, angleWeight);
+                    M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, angleWeight);
+
+                    areaWeightSum += areaWeight;
+                    angleWeightSum += angleWeight;
+                }
+
+                M_A.Entry(vertex.Index * 2, vertex.Index * 2, -areaWeightSum);
+                M_A.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, -areaWeightSum);
+                M_X.Entry(vertex.Index * 2, vertex.Index * 2, -angleWeightSum);
+                M_X.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, -angleWeightSum);
+            }
+
+
+
+            // Free boundary
+            foreach (var vertex in meshin.Vertices.Where(v => v.OnBoundary))
+            {
+                var weightSum = 0d;
+                
+                foreach (var halfEdge in vertex.Halfedges.Where(he => !he.Edge.OnBoundary))
+                {
+                    // cot(alpha) + cot(beta)
+                    var borderWeight = halfEdge.Previous.Traits.Cotan + halfEdge.Opposite.Previous.Traits.Cotan;
+
+                    M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
+                    M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
+                    M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
+                    M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
+
+                    weightSum += borderWeight;
+                }
+
+                foreach (var halfEdge in vertex.Halfedges.Where(he => he.Edge.OnBoundary))
+                {
+                    if (halfEdge.OnBoundary)
+                    {
+                        // cot(alpha) + cot(beta)
+                        var borderWeight = halfEdge.Previous.Traits.Cotan;
+
+                        M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
+                        M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, -1);
+                        M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
+                        M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2, 1);
+
+                        M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
+                        M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, -1);
+                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
+                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, 1);
+
+                        weightSum += borderWeight;
+                    }
+                    else
+                    {
+                        // cot(alpha) + cot(beta)
+                        var borderWeight = halfEdge.Opposite.Previous.Traits.Cotan;
+
+                        M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
+                        M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, 1);
+                        M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
+                        M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2, -1);
+
+                        M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
+                        M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, 1);
+                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
+                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -1);
+
+                        weightSum += borderWeight;
+                    }
+                }
+
+                M_A.Entry(vertex.Index * 2, vertex.Index * 2, weightSum);
+                M_A.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, weightSum);
+                M_X.Entry(vertex.Index * 2, vertex.Index * 2, weightSum);
+                M_X.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, weightSum);
+            }
+
+            // Fixed vertices
+
+            // M^n
+            M_A.Entry(2 * vertexCount, 2 * P1Index, 1);
+            M_A.Entry(2 * vertexCount + 1, 2 * P1Index + 1, 1);
+            M_X.Entry(2 * vertexCount, 2 * P1Index, 1);
+            M_X.Entry(2 * vertexCount + 1, 2 * P1Index + 1, 1);
+
+            M_A.Entry(2 * vertexCount + 2, 2 * P2Index, 1);
+            M_A.Entry(2 * vertexCount + 3, 2 * P2Index + 1, 1);
+            M_X.Entry(2 * vertexCount + 2, 2 * P2Index, 1);
+            M_X.Entry(2 * vertexCount + 3, 2 * P2Index + 1, 1);
+
+            // M^n transp
+            M_A.Entry(2 * P1Index, 2 * vertexCount, 1);
+            M_A.Entry(2 * P1Index + 1, 2 * vertexCount + 1, 1);
+            M_X.Entry(2 * P1Index, 2 * vertexCount, 1);
+            M_X.Entry(2 * P1Index + 1, 2 * vertexCount + 1, 1);
+
+            M_A.Entry(2 * P2Index, 2 * vertexCount + 2, 1);
+            M_A.Entry(2 * P2Index + 1, 2 * vertexCount + 3, 1);
+            M_X.Entry(2 * P2Index, 2 * vertexCount + 2, 1);
+            M_X.Entry(2 * P2Index + 1, 2 * vertexCount + 3, 1);
+
+            // b^n
+            x[2 * vertexCount] = P1UV.X;
+            x[2 * vertexCount + 1] = P1UV.Y;
+            x[2 * vertexCount + 2] = P2UV.X;
+            x[2 * vertexCount + 3] = P2UV.Y;
+
+            var matrix = SparseMatrix.Add(M_A.Compress(), M_X.Compress(), 0d, 1d);
+            var solver = QR.Create(matrix);
+            solver.Solve(x);
+
+            for (var vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
+            {
+                bu[vertexIndex] = x[2 * vertexIndex];
+                bv[vertexIndex] = x[2 * vertexIndex + 1];
+            }
 
             /// update mesh positions and uv's
             MeshLaplacian.UpdateMesh(meshout, bu, bv, b0, bu, bv);
