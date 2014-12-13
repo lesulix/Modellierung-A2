@@ -472,30 +472,30 @@ namespace Meshes.Algorithms
 
             foreach (var vertex in meshin.Vertices.Where(v => !v.OnBoundary))
             {
-                var areaWeightSum = 0d;
                 var angleWeightSum = 0d;
+                var areaWeightSum = 0d;
 
                 foreach (var halfEdge in vertex.Halfedges)
                 {
                     // cot(alpha) + cot(beta)
-                    var areaWeight = halfEdge.Previous.Traits.Cotan + halfEdge.Opposite.Previous.Traits.Cotan;
+                    var angleWeight = halfEdge.Previous.Traits.Cotan + halfEdge.Opposite.Previous.Traits.Cotan;
                     // cot(gamma) + cot(delta)
-                    var angleWeight = (halfEdge.Next.Traits.Cotan + halfEdge.Opposite.Traits.Cotan);
-                    angleWeight /= (halfEdge.FromVertex.Traits.Position - halfEdge.ToVertex.Traits.Position).LengthSquared();
+                    var areaWeight = (halfEdge.Next.Traits.Cotan + halfEdge.Opposite.Traits.Cotan);
+                    areaWeight /= (halfEdge.FromVertex.Traits.Position - halfEdge.ToVertex.Traits.Position).LengthSquared();
 
-                    M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, areaWeight);
-                    M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, areaWeight);
-                    M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, angleWeight);
-                    M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, angleWeight);
+                    M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, angleWeight);
+                    M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, angleWeight);
+                    M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, areaWeight);
+                    M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, areaWeight);
 
-                    areaWeightSum += areaWeight;
                     angleWeightSum += angleWeight;
+                    areaWeightSum += areaWeight;
                 }
 
-                M_A.Entry(vertex.Index * 2, vertex.Index * 2, -areaWeightSum);
-                M_A.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, -areaWeightSum);
-                M_X.Entry(vertex.Index * 2, vertex.Index * 2, -angleWeightSum);
-                M_X.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, -angleWeightSum);
+                M_A.Entry(vertex.Index * 2, vertex.Index * 2, -angleWeightSum);
+                M_A.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, -angleWeightSum);
+                M_X.Entry(vertex.Index * 2, vertex.Index * 2, -areaWeightSum);
+                M_X.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, -areaWeightSum);
             }
 
             // Free boundary
@@ -531,7 +531,7 @@ namespace Meshes.Algorithms
                         M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
                         M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, -1);
                         M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
-                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, 1);
+                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2, 1);
 
                         weightSum += borderWeight;
                     }
@@ -548,7 +548,7 @@ namespace Meshes.Algorithms
                         M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
                         M_X.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, 1);
                         M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
-                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -1);
+                        M_X.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2, -1);
 
                         weightSum += borderWeight;
                     }
