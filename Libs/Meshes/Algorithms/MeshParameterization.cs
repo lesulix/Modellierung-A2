@@ -141,6 +141,7 @@ namespace Meshes.Algorithms
             set;
         }
 
+        public float AngleToAreaRatio { get; set; }
         public int P1Index { get; set; }
         public int P2Index { get; set; }
         public Vector2 P1UV { get; set; }
@@ -158,6 +159,7 @@ namespace Meshes.Algorithms
         private MeshParameterization()
         {
             this.SelectedMethod = Method.Barycentric;
+            this.AngleToAreaRatio = 1f;
             this.P1Index = 153;
             this.P2Index = 19;
             this.P1UV = new Vector2(0.5f, 0);
@@ -496,8 +498,6 @@ namespace Meshes.Algorithms
                 M_X.Entry(vertex.Index * 2 + 1, vertex.Index * 2 + 1, -angleWeightSum);
             }
 
-
-
             // Free boundary
             foreach (var vertex in meshin.Vertices.Where(v => v.OnBoundary))
             {
@@ -521,7 +521,7 @@ namespace Meshes.Algorithms
                     if (halfEdge.OnBoundary)
                     {
                         // cot(alpha) + cot(beta)
-                        var borderWeight = halfEdge.Previous.Traits.Cotan;
+                        var borderWeight = halfEdge.Opposite.Previous.Traits.Cotan;
 
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, -1);
@@ -538,7 +538,7 @@ namespace Meshes.Algorithms
                     else
                     {
                         // cot(alpha) + cot(beta)
-                        var borderWeight = halfEdge.Opposite.Previous.Traits.Cotan;
+                        var borderWeight = halfEdge.Previous.Traits.Cotan;
 
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, 1);
@@ -590,7 +590,7 @@ namespace Meshes.Algorithms
             x[2 * vertexCount + 2] = P2UV.X;
             x[2 * vertexCount + 3] = P2UV.Y;
 
-            var matrix = SparseMatrix.Add(M_A.Compress(), M_X.Compress(), 0d, 1d);
+            var matrix = SparseMatrix.Add(M_A.Compress(), M_X.Compress(), AngleToAreaRatio, 1 - AngleToAreaRatio);
             var solver = QR.Create(matrix);
             solver.Solve(x);
 

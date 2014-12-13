@@ -184,6 +184,7 @@
                                     <RowDefinition />
                                     <RowDefinition />
                                     <RowDefinition />
+                                    <RowDefinition />
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="1*" />
@@ -193,15 +194,17 @@
                                 <ComboBox ToolTip="Parameterization Method"  Margin="3" Grid.Row="0" Grid.ColumnSpan="2"  ItemsSource="{Binding ParameterizationMethods}" SelectedItem="{Binding SelectedParameterizationMethod}" IsEditable="True" IsReadOnly="True" />
                                 <ComboBox ToolTip="Boundary for Barycentric Method" Margin="3" Grid.Row="1" Grid.ColumnSpan="2" ItemsSource="{Binding BoundaryTypes}" SelectedItem="{Binding SelectedBoundaryType}" IsEditable="True" IsReadOnly="True" />
                                 <ComboBox ToolTip="Texture Image"  Margin="3" Grid.Row="2" Grid.ColumnSpan="2"  ItemsSource="{Binding TextureImages}" SelectedItem="{Binding SelectedTextureImage}" IsEditable="True" IsReadOnly="True" />
-                                <TextBox ToolTip="Fix Point 1 Index" Margin="3" Grid.Row="3" Grid.Column="0" Text="{Binding ParameterizationSolver.P1Index}"/>
-                                <TextBox ToolTip="Fix Point 1 UV"    Margin="3" Grid.Row="3" Grid.Column="1" Text="{Binding ParameterizationSolver.P1UV}"/>
-                                <TextBox ToolTip="Fix Point 1 Index" Margin="3" Grid.Row="4" Grid.Column="0" Text="{Binding ParameterizationSolver.P2Index}"/>
-                                <TextBox ToolTip="Fix Point 1 UV"    Margin="3" Grid.Row="4" Grid.Column="1" Text="{Binding ParameterizationSolver.P2UV}"/>
+                                <TextBox IsEnabled="{Binding IsExplicit}" ToolTip="Angle To Area Ratio" Margin="3" Grid.Row="3" Grid.Column="0" Text="{Binding ParameterizationSolver.AngleToAreaRatio}"/>
+                                <Slider  IsEnabled="{Binding IsExplicit}" ToolTip="Angle To Area Ratio" Margin="3" Grid.Row="3" Grid.Column="1" Value="{Binding ParameterizationSolver.AngleToAreaRatio}" Minimum="0" Maximum="1" IsSnapToTickEnabled="True"  TickFrequency="0.01"/>
+                                <TextBox ToolTip="Fix Point 1 Index" Margin="3" Grid.Row="4" Grid.Column="0" Text="{Binding ParameterizationSolver.P1Index}"/>
+                                <TextBox ToolTip="Fix Point 1 UV"    Margin="3" Grid.Row="4" Grid.Column="1" Text="{Binding ParameterizationSolver.P1UV}"/>
+                                <TextBox ToolTip="Fix Point 1 Index" Margin="3" Grid.Row="5" Grid.Column="0" Text="{Binding ParameterizationSolver.P2Index}"/>
+                                <TextBox ToolTip="Fix Point 1 UV"    Margin="3" Grid.Row="5" Grid.Column="1" Text="{Binding ParameterizationSolver.P2UV}"/>
                                 <!--<Slider  ToolTip="Opacity" Margin="3" Grid.Row="2" Grid.ColumnSpan="2" x:Name="ImageOpacity" Minimum="0" Maximum="1" Value="0.25" IsSnapToTickEnabled="True"  TickFrequency="0.1"/>-->
-                                <CheckBox ToolTip="Show Image" IsChecked="{Binding ShowImage}"  x:Name="ShowImage" Margin="3" Grid.Row="5" Grid.ColumnSpan="2">Show Image</CheckBox>
-                                <CheckBox ToolTip="Show Mesh"  IsChecked="{Binding ShowMesh2D}" x:Name="ShowMesh" Margin="3,4,3,2" Grid.Row="6" Grid.ColumnSpan="2">Show Mesh</CheckBox>
-                                <Button  ToolTip="Process"    Margin="3" Grid.Row="7" Grid.ColumnSpan="2" Command="{Binding ParameterizeCmd}">Process</Button>
-                                <Button  ToolTip="Create Geometry Image"    Margin="3" Grid.Row="8" Grid.ColumnSpan="2" Command="{Binding CreateGeometryImageCmd}">Create Geometry Image</Button>
+                                <CheckBox ToolTip="Show Image" IsChecked="{Binding ShowImage}"  x:Name="ShowImage" Margin="3" Grid.Row="6" Grid.ColumnSpan="2">Show Image</CheckBox>
+                                <CheckBox ToolTip="Show Mesh"  IsChecked="{Binding ShowMesh2D}" x:Name="ShowMesh" Margin="3,4,3,2" Grid.Row="7" Grid.ColumnSpan="2">Show Mesh</CheckBox>
+                                <Button  ToolTip="Process"    Margin="3" Grid.Row="8" Grid.ColumnSpan="2" Command="{Binding ParameterizeCmd}">Process</Button>
+                                <Button  ToolTip="Create Geometry Image"    Margin="3" Grid.Row="9" Grid.ColumnSpan="2" Command="{Binding CreateGeometryImageCmd}">Create Geometry Image</Button>
                             </Grid>
                         </Expander>
 
