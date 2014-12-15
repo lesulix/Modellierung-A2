@@ -503,6 +503,7 @@ namespace Meshes.Algorithms
             {
                 var weightSum = 0d;
                 
+                // Inner edges
                 foreach (var halfEdge in vertex.Halfedges.Where(he => !he.Edge.OnBoundary))
                 {
                     // cot(alpha) + cot(beta)
@@ -516,13 +517,15 @@ namespace Meshes.Algorithms
                     weightSum += borderWeight;
                 }
 
+                // Boundary edges
                 foreach (var halfEdge in vertex.Halfedges.Where(he => he.Edge.OnBoundary))
                 {
+                    // Last edge
                     if (halfEdge.OnBoundary)
                     {
-                        // cot(alpha) + cot(beta)
                         var borderWeight = halfEdge.Opposite.Previous.Traits.Cotan;
 
+                        // Weight edge by cotan once and substract the rotated uv vector
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, -1);
                         M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
@@ -535,11 +538,13 @@ namespace Meshes.Algorithms
 
                         weightSum += borderWeight;
                     }
+                    // First edge
                     else
                     {
                         // cot(alpha) + cot(beta)
                         var borderWeight = halfEdge.Previous.Traits.Cotan;
 
+                        // Weight edge by cotan once and substract the rotated uv vector
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2, -borderWeight);
                         M_A.Entry(vertex.Index * 2, halfEdge.ToVertex.Index * 2 + 1, 1);
                         M_A.Entry(vertex.Index * 2 + 1, halfEdge.ToVertex.Index * 2 + 1, -borderWeight);
